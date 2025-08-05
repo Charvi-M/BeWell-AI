@@ -8,10 +8,10 @@ langchain
 langchain_google_genai
 langchain_huggingface
 langchain-community
-
+langchain-core
+faiss-cpu
 # Vector store and embeddings
-sentence-transformers==2.7.0
-faiss-cpu==1.8.0
+sentence-transformers
 
 # HTML parsing
 beautifulsoup4==4.13.4
