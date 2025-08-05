@@ -40,14 +40,13 @@ def get_embedding_model():
         try:
             log_memory_usage("Before loading embeddings")
             
-            # Fixed: Remove normalize_embeddings from model_kwargs, put in encode_kwargs
             embedding_model = HuggingFaceEmbeddings(
-                model_name="all-MiniLM-L6-v2",
-                model_kwargs={'device': 'cpu'},
-                encode_kwargs={
-                    'batch_size': 1,  # Process one at a time
-                    'normalize_embeddings': True  # Move here
-                }
+             model_name="BAAI/bge-small-en-v1.5",        #  ← NEW MODEL
+             model_kwargs={'device': 'cpu'},
+             encode_kwargs={
+              'batch_size': 1,
+             'normalize_embeddings': True
+             }
             )
             
             log_memory_usage("After loading embeddings")

@@ -62,9 +62,9 @@ def create_vectorstores():
 
         # Initialize embedding model
         embedding_model = HuggingFaceEmbeddings(
-            model_name="all-MiniLM-L6-v2",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
+         model_name="BAAI/bge-small-en-v1.5",        #  ← NEW MODEL
+         model_kwargs={'device': 'cpu'},
+        encode_kwargs={'normalize_embeddings': True}
         )
 
         # Build FAISS vectorstores

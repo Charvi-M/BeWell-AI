@@ -11,6 +11,7 @@ langchain-core
 faiss-cpu
 # Vector store and embeddings
 sentence-transformers
+fastembed
 
 # HTML parsing
 beautifulsoup4==4.13.4
