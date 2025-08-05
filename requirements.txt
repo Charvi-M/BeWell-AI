@@ -19,5 +19,5 @@ PyMuPDF
 # Utilities
 python-dotenv==1.1.1
 requests==2.32.4
-numpy==1.24.4
+numpy
 psutil
