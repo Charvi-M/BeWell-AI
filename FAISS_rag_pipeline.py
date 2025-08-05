@@ -1,254 +1,148 @@
-import os
-import gc
-import psutil
-import traceback
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
+from fastembed.embedding import TextEmbedding  
+from langchain_core.embeddings import Embeddings
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+import os
+from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
-
-# Memory optimization settings
-os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-os.environ['TRANSFORMERS_CACHE'] = '/tmp'
-os.environ['HF_HOME'] = '/tmp'
-os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 load_dotenv()
 
-# Global variables for lazy loading
-embedding_model = None
-llm = None
-dbTherapy = None
-dbResources = None
-retrieverTherapy = None
-retrieverResource = None
+class FastEmbedLangChainWrapper(Embeddings):
+    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
+        self.model = TextEmbedding(model_name=model_name)
 
-def log_memory_usage(context=""):
-    """Log current memory usage"""
-    try:
-        process = psutil.Process()
-        mem_in_mb = process.memory_info().rss / (1024 * 1024)
-        print(f"[MEMORY] {context}: {mem_in_mb:.1f} MB")
-        return mem_in_mb
-    except:
-        return 0
+    def embed_documents(self, texts):
+        return list(self.model.embed(texts))
 
-def get_embedding_model():
-    """Lazy loading of embedding model with memory optimization"""
-    global embedding_model
-    if embedding_model is None:
-        try:
-            log_memory_usage("Before loading embeddings")
-            
-            embedding_model = HuggingFaceEmbeddings(
-             model_name="BAAI/bge-small-en-v1.5",        #  ← NEW MODEL
-             model_kwargs={'device': 'cpu'},
-             encode_kwargs={
-              'batch_size': 1,
-             'normalize_embeddings': True
-             }
-            )
-            
-            log_memory_usage("After loading embeddings")
-            gc.collect()
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to load embedding model: {e}")
-            traceback.print_exc()
-            raise
-    return embedding_model
+    def embed_query(self, text):
+        return next(self.model.embed([text]))
 
-def get_llm():
-    """Lazy loading of LLM"""
-    global llm
-    if llm is None:
-        try:
-            llm = ChatGoogleGenerativeAI(
-                model="gemini-2.5-flash",
-                temperature=0.7,
-                api_key=os.getenv("GEMINI_API_KEY"),
-            )
-            print("[INFO] LLM loaded successfully")
-        except Exception as e:
-            print(f"[ERROR] Failed to load LLM: {e}")
-            traceback.print_exc()
-            raise
-    return llm
 
-def get_vectorstores():
-    """Memory-optimized vector store loading"""
-    global dbTherapy, dbResources, retrieverTherapy, retrieverResource
-    
-    if dbTherapy is None or dbResources is None:
-        try:
-            log_memory_usage("Before loading vectorstores")
-            
-            # Check if files exist
-            if not os.path.exists("faiss_therapy_index"):
-                raise FileNotFoundError("FAISS therapy index not found")
-            if not os.path.exists("faiss_resource_index"):
-                raise FileNotFoundError("FAISS resource index not found")
-            
-            embeddings = get_embedding_model()
-            
-            # Load therapy vectorstore
-            dbTherapy = FAISS.load_local(
-                "faiss_therapy_index",
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-            
-            # Force garbage collection before loading second vectorstore
-            gc.collect()
-            
-            # Load resource vectorstore
-            dbResources = FAISS.load_local(
-                "faiss_resource_index",
-                embeddings,
-                allow_dangerous_deserialization=True
-            )
-            
-            # Create retrievers with limited results
-            retrieverTherapy = dbTherapy.as_retriever(search_kwargs={"k": 2})
-            retrieverResource = dbResources.as_retriever(search_kwargs={"k": 2})
-            
-            log_memory_usage("After loading vectorstores")
-            gc.collect()
-            
-        except Exception as e:
-            print(f"[ERROR] Failed to load vectorstores: {e}")
-            traceback.print_exc()
-            raise
-            
-    return retrieverTherapy, retrieverResource
 
+embedding_model = FastEmbedLangChainWrapper(model_name="BAAI/bge-small-en-v1.5")
+
+#prompt templates
+
+therapist_prompt = PromptTemplate(input_variables=["question", "raw_answer", "user_profile"], template="""
+You are a compassionate clinical psychologist speaking directly with a client.
+
+Client Profile: {user_profile}
+Client's Question: {question}
+Knowledge Base Insights: "{raw_answer}"
+
+Remember this client's information from their profile. You can refer to their name, age, country, and other details naturally in conversation.
+
+If the user provides symptoms, you must:
+1. List possible diagnoses in bullet points
+2. Include a disclaimer that you are an AI agent, not a professional
+3. Ask if they want professional help or want to talk about it
+4. If they want to talk, provide gentle and supportive guidance
+
+Respond naturally and directly to the client. Avoid saying stuff like of course here is a gentle and supportive reply because then the user will feel that you are not talking to them directly.
+
+Your response:
+""")
+
+resource_prompt = PromptTemplate(input_variables=["question", "raw_answer", "user_profile"], template="""
+User asked: "{question}"
+User Profile: {user_profile}
+Resources retrieved: "{raw_answer}"
+
+You are a mental health assistant. Suggest **only country-specific and free (if user is financially struggling or on a limited budget otherwise suggest paid resources too)** support links or helpline numbers.
+Keep it short, practical, and clear.
+Output only contact options, links, or phone numbers:
+""")
+
+
+classification_prompt = PromptTemplate(input_variables=["question"], template="""
+You are an intent classifier for a multi-agent mental health system.
+Classify the user input:
+- therapist: if the user is asking for a definition, explanation, symptoms, needs emotional support, asks personal questions about themselves, or wants to chat
+- resource: if the user is asking for support links, professional help, helpline numbers, or country-specific services
+
+Input: "{question}"
+Respond with one word only: therapist or resource
+""")
+
+
+dbTherapy = FAISS.load_local("faiss_therapy_index", embedding_model, allow_dangerous_deserialization=True)
+dbResources = FAISS.load_local("faiss_resource_index", embedding_model, allow_dangerous_deserialization=True)
+
+retrieverTherapy = dbTherapy.as_retriever()
+retrieverResource = dbResources.as_retriever()
+
+   
+llm = ChatGoogleGenerativeAI(
+        model="gemini-2.5-flash",
+        temperature=0.7,
+        api_key=os.getenv("GEMINI_API_KEY"),
+    )
+
+# --- Memory ---
+memory = ConversationBufferMemory(
+    memory_key="chat_history",
+    return_messages=True,
+    output_key="answer"
+)
+
+therapy_base_chain = ConversationalRetrievalChain.from_llm(
+    llm=llm,
+    retriever=retrieverTherapy,
+    memory=memory,
+    return_source_documents=True,
+    output_key="answer",
+    verbose=True
+)
+# --- Classifier ---
 def classify_agent(user_input: str) -> str:
-    """Simple classification with memory management"""
-    try:
-        # Simple keyword-based classification to save memory
-        keywords_resource = ['help', 'helpline', 'support', 'contact', 'number', 'resource', 'professional']
-        keywords_therapy = ['feel', 'anxiety', 'depression', 'stress', 'sad', 'talk', 'chat', 'racing', 'ghosts', 'heart']
-        
-        user_lower = user_input.lower()
-        
-        # Count keyword matches
-        resource_score = sum(1 for keyword in keywords_resource if keyword in user_lower)
-        therapy_score = sum(1 for keyword in keywords_therapy if keyword in user_lower)
-        
-        # If no clear match, classify based on question words
-        if resource_score == therapy_score:
-            if any(word in user_lower for word in ['where', 'how to find', 'contact', 'call']):
-                return "resource"
-        
-        return "resource" if resource_score > therapy_score else "therapist"
-        
-    except Exception as e:
-        print(f"[ERROR] Classification error: {e}")
-        return "therapist"
+    prompt = classification_prompt.format(question=user_input)
+    response = llm.invoke(prompt)
+    result = response.content.strip().lower() if hasattr(response, "content") else str(response).strip().lower()
+    return result if result in ["therapist", "resource"] else "therapist"
 
-def get_therapy_response(user_input: str, user_profile: dict) -> str:
-    """Get therapy response with memory optimization"""
-    try:
-        log_memory_usage("Before therapy response")
-        
-        therapy_retriever, _ = get_vectorstores()
-        docs = therapy_retriever.invoke(user_input)
-        
-        if not docs:
-            raise ValueError("No documents retrieved")
-        
-        # Limit context to save memory
-        context = "\n".join([doc.page_content[:300] for doc in docs[:2]])
-        
-        profile_summary = f"Name: {user_profile.get('name', 'User')}, Country: {user_profile.get('country', 'unknown')}"
-        
-        # Simplified prompt to reduce token usage
-        prompt = f"""You are a compassionate therapist.
-Client: {profile_summary}
-Question: {user_input}
-Context: {context}
+# --- Therapist Agent ---
+def therapist_wrapper(user_input, raw_answer, user_profile):
+    prompt = therapist_prompt.format(question=user_input, raw_answer=raw_answer, user_profile=user_profile)
+    styled = llm.invoke(prompt)
+    return styled.content if hasattr(styled, "content") else str(styled)
 
-Provide a brief, supportive response (max 150 words):"""
-        
-        llm = get_llm()
-        response = llm.invoke(prompt)
-        
-        log_memory_usage("After therapy response")
-        gc.collect()
-        
-        return response.content if hasattr(response, 'content') else str(response)
-        
-    except Exception as e:
-        print(f"[ERROR] Therapy response error: {e}")
-        traceback.print_exc()
-        return "I'm here to support you. Could you tell me more about what's on your mind?"
+# --- Resource Agent ---
+def resource_wrapper(user_input, user_profile):
+    docs = retrieverResource.invoke(user_input)
+    # print("\n[RESOURCE] Retrieved documents:")
+    # for i, doc in enumerate(docs):
+    #     print(f"  [{i+1}] {doc.page_content[:300]}...\n")
 
-def get_resource_response(user_input: str, user_profile: dict) -> str:
-    """Get resource response with memory optimization"""
-    try:
-        log_memory_usage("Before resource response")
-        
-        _, resource_retriever = get_vectorstores()
-        docs = resource_retriever.invoke(user_input)
-        
-        if not docs:
-            raise ValueError("No resource documents retrieved")
-        
-        # Limit context
-        context = "\n".join([doc.page_content[:300] for doc in docs[:2]])
-        country = user_profile.get('country', 'unknown')
-        
-        # Simplified prompt
-        prompt = f"""Provide mental health resources for {country}.
-Question: {user_input}
-Available resources: {context}
+    raw_text = "\n\n".join([doc.page_content for doc in docs])
+    prompt = resource_prompt.format(question=user_input, raw_answer=raw_text, user_profile=user_profile)
+    styled = llm.invoke(prompt)
+    return styled.content if hasattr(styled, "content") else str(styled)
 
-List only contact numbers and websites (max 100 words):"""
-        
-        llm = get_llm()
-        response = llm.invoke(prompt)
-        
-        log_memory_usage("After resource response")
-        gc.collect()
-        
-        return response.content if hasattr(response, 'content') else str(response)
-        
-    except Exception as e:
-        print(f"[ERROR] Resource response error: {e}")
-        traceback.print_exc()
-        return f"I'm unable to retrieve resources right now. Error: {str(e)}"
+# --- Multiagent Entry Point ---
 
 def multiagent_chain(user_input: str, user_profile: dict) -> dict:
-    """Memory-optimized main function"""
-    try:
-        log_memory_usage("Start of multiagent_chain")
+    agent = classify_agent(user_input)
+    profile_summary = f"Country: {user_profile.get('country', 'unknown')}, Financial: {user_profile.get('financial', 'unknown')}, Name: {user_profile.get('name', 'unknown')}, Age: {user_profile.get('age', 'unknown')}"
+
+    if agent == "resource":
+        answer = resource_wrapper(user_input, profile_summary)
+        return {"agent": "Gemini (Resource Assistant)", "response": answer}
+    else:
+        # Include user profile context in the question
+        contextualized_question = f"User Profile: {profile_summary}\nUser Question: {user_input}"
         
-        # Classify intent
-        agent = classify_agent(user_input)
-        print(f"[INFO] Classified as: {agent}")
+        result = therapy_base_chain.invoke({"question": contextualized_question})
+        raw_answer = result.get("answer", "")
+        #print("\n[THERAPIST] Retrieved documents:")
+        #retrieved_docs = result.get("source_documents", [])
+        #for doc in retrieved_docs:
+        #    print(doc.page_content[:200])
         
-        if agent == "resource":
-            response = get_resource_response(user_input, user_profile)
-            agent_name = "Resource Assistant"
-        else:
-            response = get_therapy_response(user_input, user_profile)
-            agent_name = "Therapist"
-        
-        log_memory_usage("End of multiagent_chain")
-        
-        # Force cleanup
-        gc.collect()
-        
-        return {
-            "agent": f"Gemini ({agent_name})",
-            "response": response
-        }
-        
-    except Exception as e:
-        print(f"[ERROR] Multiagent chain error: {e}")
-        traceback.print_exc()
-        gc.collect()
-        return {
-            "agent": "System",
-            "response": "Technical difficulties occurred. Please try again."
-        }
+        if not raw_answer:
+            return {"agent": "Gemini (Therapist)", "response": "I'm here for you. Please share a bit more."}
+
+        styled = therapist_wrapper(user_input, raw_answer, profile_summary)
+        return {"agent": "Gemini (Therapist)", "response": styled}

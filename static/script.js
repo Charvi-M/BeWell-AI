@@ -153,6 +153,7 @@ function newChat() {
     // Clear data
     localStorage.removeItem('beewell_chat_history');
     chatHistory = [];
+    loadUserData();
     // Clear chat messages
     document.getElementById('chatMessages').innerHTML = '';
 }

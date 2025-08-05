@@ -5,7 +5,6 @@ gunicorn==23.0.0
 
 # LangChain and ecosystem - let pip resolve versions
 langchain_google_genai
-langchain_huggingface
 langchain-community
 langchain-core
 faiss-cpu
@@ -15,10 +14,7 @@ fastembed
 
 # HTML parsing
 beautifulsoup4==4.13.4
-PyMuPDF
 
 # Utilities
 python-dotenv==1.1.1
 requests==2.32.4
-numpy
-psutil

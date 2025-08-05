@@ -1,8 +1,21 @@
 import os
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_core.embeddings import Embeddings
+from fastembed.embedding import TextEmbedding
+
+class FastEmbedLangChainWrapper(Embeddings):
+    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
+        self.model = TextEmbedding(model_name=model_name)
+
+    def embed_documents(self, texts):
+        return list(self.model.embed(texts))
+
+    def embed_query(self, text):
+        return next(self.model.embed([text]))
+    
+embedding_model = FastEmbedLangChainWrapper(model_name="BAAI/bge-small-en-v1.5")
 
 def check_vectorstore_exists():
     """Check if FAISS vectorstores already exist"""
@@ -61,11 +74,7 @@ def create_vectorstores():
         print(f"[INFO] Created {len(split_therapy_docs)} therapy chunks and {len(split_resource_docs)} resource chunks")
 
         # Initialize embedding model
-        embedding_model = HuggingFaceEmbeddings(
-         model_name="BAAI/bge-small-en-v1.5",        #  ← NEW MODEL
-         model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True}
-        )
+        embedding_model = embedding_model
 
         # Build FAISS vectorstores
         print("[INFO] Building therapy vectorstore...")
