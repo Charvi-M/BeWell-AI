@@ -4,7 +4,6 @@ flask_cors==6.0.1
 gunicorn==23.0.0
 
 # LangChain and ecosystem - let pip resolve versions
-langchain
 langchain_google_genai
 langchain_huggingface
 langchain-community
@@ -20,4 +19,5 @@ PyMuPDF
 # Utilities
 python-dotenv==1.1.1
 requests==2.32.4
+numpy==1.24.4
 psutil

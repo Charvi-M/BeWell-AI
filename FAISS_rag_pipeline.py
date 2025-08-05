@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 os.environ['TRANSFORMERS_CACHE'] = '/tmp'
 os.environ['HF_HOME'] = '/tmp'
-os.environ['TRANSFORMERS_OFFLINE'] = '1'  # Prevent downloading models during runtime
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
 
 load_dotenv()
 
@@ -40,21 +40,22 @@ def get_embedding_model():
         try:
             log_memory_usage("Before loading embeddings")
             
-            # Use smaller model for memory efficiency
+            # Fixed: Remove normalize_embeddings from model_kwargs, put in encode_kwargs
             embedding_model = HuggingFaceEmbeddings(
                 model_name="all-MiniLM-L6-v2",
-                model_kwargs={
-                    'device': 'cpu',
-                    'normalize_embeddings': True
-                },
-                encode_kwargs={'batch_size': 1}  # Process one at a time
+                model_kwargs={'device': 'cpu'},
+                encode_kwargs={
+                    'batch_size': 1,  # Process one at a time
+                    'normalize_embeddings': True  # Move here
+                }
             )
             
             log_memory_usage("After loading embeddings")
-            gc.collect()  # Force garbage collection
+            gc.collect()
             
         except Exception as e:
             print(f"[ERROR] Failed to load embedding model: {e}")
+            traceback.print_exc()
             raise
     return embedding_model
 
@@ -71,6 +72,7 @@ def get_llm():
             print("[INFO] LLM loaded successfully")
         except Exception as e:
             print(f"[ERROR] Failed to load LLM: {e}")
+            traceback.print_exc()
             raise
     return llm
 
@@ -92,8 +94,8 @@ def get_vectorstores():
             
             # Load therapy vectorstore
             dbTherapy = FAISS.load_local(
-                "faiss_therapy_index", 
-                embeddings, 
+                "faiss_therapy_index",
+                embeddings,
                 allow_dangerous_deserialization=True
             )
             
@@ -102,14 +104,14 @@ def get_vectorstores():
             
             # Load resource vectorstore
             dbResources = FAISS.load_local(
-                "faiss_resource_index", 
-                embeddings, 
+                "faiss_resource_index",
+                embeddings,
                 allow_dangerous_deserialization=True
             )
             
             # Create retrievers with limited results
-            retrieverTherapy = dbTherapy.as_retriever(search_kwargs={"k": 2})  # Reduced from 3
-            retrieverResource = dbResources.as_retriever(search_kwargs={"k": 2})  # Reduced from 3
+            retrieverTherapy = dbTherapy.as_retriever(search_kwargs={"k": 2})
+            retrieverResource = dbResources.as_retriever(search_kwargs={"k": 2})
             
             log_memory_usage("After loading vectorstores")
             gc.collect()
@@ -126,7 +128,7 @@ def classify_agent(user_input: str) -> str:
     try:
         # Simple keyword-based classification to save memory
         keywords_resource = ['help', 'helpline', 'support', 'contact', 'number', 'resource', 'professional']
-        keywords_therapy = ['feel', 'anxiety', 'depression', 'stress', 'sad', 'talk', 'chat']
+        keywords_therapy = ['feel', 'anxiety', 'depression', 'stress', 'sad', 'talk', 'chat', 'racing', 'ghosts', 'heart']
         
         user_lower = user_input.lower()
         
@@ -157,7 +159,7 @@ def get_therapy_response(user_input: str, user_profile: dict) -> str:
             raise ValueError("No documents retrieved")
         
         # Limit context to save memory
-        context = "\n".join([doc.page_content[:300] for doc in docs[:2]])  # Reduced size
+        context = "\n".join([doc.page_content[:300] for doc in docs[:2]])
         
         profile_summary = f"Name: {user_profile.get('name', 'User')}, Country: {user_profile.get('country', 'unknown')}"
         
@@ -173,7 +175,7 @@ Provide a brief, supportive response (max 150 words):"""
         response = llm.invoke(prompt)
         
         log_memory_usage("After therapy response")
-        gc.collect()  # Clean up immediately
+        gc.collect()
         
         return response.content if hasattr(response, 'content') else str(response)
         
@@ -249,5 +251,5 @@ def multiagent_chain(user_input: str, user_profile: dict) -> dict:
         gc.collect()
         return {
             "agent": "System",
-            "response": f"Technical difficulties occurred. Please try again."
+            "response": "Technical difficulties occurred. Please try again."
         }
