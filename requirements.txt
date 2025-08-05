@@ -3,12 +3,11 @@ Flask==3.1.1
 flask_cors==6.0.1
 gunicorn==23.0.0
 
-# LangChain and ecosystem - compatible versions
-langchain==0.3.27
-langchain_core==0.3.72
-langchain_google_genai==2.1.8
-langchain_huggingface==0.3.1
-langchain-community==0.0.38
+# LangChain and ecosystem - let pip resolve versions
+langchain
+langchain_google_genai
+langchain_huggingface
+langchain-community
 
 # Vector store and embeddings
 sentence-transformers==2.7.0
@@ -16,10 +15,10 @@ faiss-cpu==1.8.0
 
 # HTML parsing
 beautifulsoup4==4.13.4
-PyMuPDF==1.24.14
+PyMuPDF
 
 # Utilities
 python-dotenv==1.1.1
 requests==2.32.4
-numpy==1.26.4
-transformers==4.39.3
+numpy>=1.24.0,<2.0.0
+transformers>=4.30.0
