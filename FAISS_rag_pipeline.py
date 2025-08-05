@@ -4,6 +4,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferMemory
 import os
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+os.environ['TRANSFORMERS_CACHE'] = '/tmp'
+
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
 import gc

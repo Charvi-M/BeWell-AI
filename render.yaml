@@ -3,6 +3,12 @@ services:
   name: BeWell-AI
   env: python
   buildCommand: |
-    pip install --upgrade pip
+    pip install --upgrade pip setuptools wheel
     pip install -r requirements.txt
-  startCommand: gunicorn app:app --workers 1 --bind 0.0.0.0:$PORT --max-requests 1000 --max-requests-jitter 100 --timeout 120
+
+  startCommand: |
+    export PYTHONUNBUFFERED=1
+    export PYTHONDONTWRITEBYTECODE=1
+    export TOKENIZERS_PARALLELISM=false
+    gunicorn app:app --workers 1 --threads 2 --bind 0.0.0.0:$PORT --max-requests 500 --timeout 120 --worker-class sync --worker-tmp-dir /dev/shm --preload
+

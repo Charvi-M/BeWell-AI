@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 from FAISS_rag_pipeline import multiagent_chain
+import os
 
 app = Flask(__name__)
 CORS(app)
@@ -55,5 +56,8 @@ def chat_handler():
             "response": f"I'm experiencing some technical difficulties right now. Please try again in a moment."
         }), 500
 
+
+
 if __name__ == "__main__":
-    app.run(host="192.168.29.189", port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
