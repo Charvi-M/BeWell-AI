@@ -1,25 +1,30 @@
+# Ensure build backend works correctly
 setuptools>=42
 wheel
+build
+
+# HTML parsing
 beautifulsoup4==4.13.4
 PyMuPDF
+
+# Backend
 Flask==3.1.1
 flask_cors==6.0.1
+gunicorn==21.2.0
+
+# LangChain and ecosystem
 langchain==0.3.27
 langchain_core==0.3.72
 langchain_google_genai==2.1.8
 langchain_huggingface==0.3.1
-python-dotenv==1.1.1
-requests==2.32.4
-gunicorn==21.2.0
-
-
-# LangChain core (minimal footprint)
 langchain-community==0.0.38
 
-# Embeddings and vector store
+# Vector store and embeddings
 sentence-transformers==2.7.0
-faiss-cpu==1.8.0  # Use CPU version instead of GPU
+faiss-cpu==1.8.0
 
 # Utilities
-numpy==1.24.4  # Pin to stable version
+python-dotenv==1.1.1
+requests==2.32.4
+numpy==1.24.4
 transformers==4.39.3

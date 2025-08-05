@@ -5,14 +5,7 @@ services:
     runtime: python-3.10.12
     buildCommand: |
       # Install only production requirements
-      pip install --no-cache-dir -r requirements.txt
-      
-      # Clean up pip cache to save space
-      pip cache purge
-      
-      # Remove unnecessary files
-      find . -type d -name "__pycache__" -exec rm -rf {} +
-      find . -name "*.pyc" -delete
+      ./build.sh
       
     startCommand: |
       # Set memory-optimized environment variables
@@ -31,4 +24,3 @@ services:
         --worker-class sync \
         --worker-tmp-dir /dev/shm \
         --preload
-        
