@@ -7,9 +7,9 @@ services:
     pip install -r requirements.txt
 
   startCommand: |
-   export PYTHONUNBUFFERED=1
-   export PYTHONDONTWRITEBYTECODE=1
-   export TOKENIZERS_PARALLELISM=false
-   export OMP_NUM_THREADS=1
-   export MALLOC_TRIM_THRESHOLD_=100000
-   gunicorn app:app --workers 1 --threads 1 --bind 0.0.0.0:$PORT --max-requests 50 --max-requests-jitter 10 --timeout 300 --worker-class sync --worker-tmp-dir /dev/shm --preload --worker-connections 100
+    export PYTHONUNBUFFERED=1
+    export PYTHONDONTWRITEBYTECODE=1
+    export TOKENIZERS_PARALLELISM=false
+    export OMP_NUM_THREADS=1
+    export MALLOC_TRIM_THRESHOLD_=100000
+    gunicorn app:app --workers 1 --threads 1 --bind 0.0.0.0:$PORT --max-requests 50 --max-requests-jitter 10 --timeout 300 --worker-class sync --worker-tmp-dir /dev/shm --preload --worker-connections 100
