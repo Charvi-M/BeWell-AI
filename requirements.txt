@@ -1,5 +1,9 @@
 # Ensure build backend works correctly
-setuptools>=42
+setuptools>=70.0.0
+setuptools_scm>=8.0
+wheel
+build
+
 wheel
 build
 
