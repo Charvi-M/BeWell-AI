@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: BeWell-AI
+    env: python
+    runtime: python-3.10.12
+    buildCommand: |
+      # Install only production requirements
+      pip install --no-cache-dir -r requirements.txt
+      
+      # Clean up pip cache to save space
+      pip cache purge
+      
+      # Remove unnecessary files
+      find . -type d -name "__pycache__" -exec rm -rf {} +
+      find . -name "*.pyc" -delete
+      
+    startCommand: |
+      # Set memory-optimized environment variables
+      export PYTHONUNBUFFERED=1
+      export PYTHONDONTWRITEBYTECODE=1
+      export TOKENIZERS_PARALLELISM=false
+      
+      # Start with single worker and memory limits
+      gunicorn app:app \
+        --workers 1 \
+        --threads 2 \
+        --bind 0.0.0.0:$PORT \
+        --max-requests 500 \
+        --max-requests-jitter 50 \
+        --timeout 120 \
+        --worker-class sync \
+        --worker-tmp-dir /dev/shm \
+        --preload
+        
