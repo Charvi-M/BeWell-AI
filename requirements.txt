@@ -11,7 +11,6 @@ requests==2.32.4
 gunicorn==21.2.0
 
 # LangChain core (minimal footprint)
-langchain==0.1.20
 langchain-community==0.0.38
 
 # Embeddings and vector store
