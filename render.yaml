@@ -24,3 +24,7 @@ services:
         --worker-class sync \
         --worker-tmp-dir /dev/shm \
         --preload
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
