@@ -17,7 +17,7 @@ def receive_user_data():
     data = request.get_json()
     name = data.get("userName", "unknown")
     
-    # Store user profile in session data
+    #Store user profile in session data
     user_session_data["user"] = {
         "name": name,
         "age": data.get("userAge", ""),
